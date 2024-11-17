@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "codegen": "^0.1.0",
+    "pathlib": "^0.1.2",
+    "playwright": "^1.48.2"
+  }
+}
