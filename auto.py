@@ -30,19 +30,58 @@ url = "https://www.linkedin.com/login"
 role="Data Analyst"
 location = "United States"
 
+async def extract_jobs(page: Page) -> None:
+   print("Extracting jobs into an excel sheet")
+
+async def apply_jobs(page: Page) -> None:
+   print("Applying for jobs")
+
+
 async def job_search(page: Page, role: str, location: str) -> None:
+   #Verify Navbar is loaded and jobs icon is visible
+   navbar = page.get_by_label("Global Navigation")
+   await navbar.is_visible()
+   job_icon = page.get_by_role("link", name="Jobs")
+   await job_icon.is_visible()
+
    # Click on the "Jobs" icon
-   jobs_icon = page.locator('a.global-nav__primary-link[href*="jobs"]')
-   await jobs_icon.click()
+   await job_icon.click()
    print('Clicked on Jobs icon')
    await asyncio.sleep(5)
 
    #Search for specified role and location
-   role_search = page.get_by_label('Search by title, skill, or company')
+   role_search = page.get_by_role("combobox", name="Search by title, skill, or")
    await role_search.fill(role)
-   print('role filled')
+   print('Role filled')
+   await asyncio.sleep(5)
+   loc_search = page.get_by_role("combobox", name="City, state, or zip code")
+   await loc_search.fill(location)
+   click_loc_search = page.get_by_label("Global Navigation").get_by_text(location, exact=True)
+   await click_loc_search.click()
+   print('Location filled')
    await asyncio.sleep(5)
 
+   #Search filter for date
+   job_posting_date = page.get_by_label("Date posted filter. Clicking")
+   await job_posting_date.click()
+   date_option = page.get_by_text("Past week", exact=True)
+   await date_option.click()
+   await asyncio.sleep(5)
+   show_jobs = page.get_by_role("button", name="Apply current filter to show")
+   await show_jobs.click()
+   print('Date Filter Applied')
+   await asyncio.sleep(5)
+
+   #Easy Apply Option
+   easy_apply = page.get_by_label("Easy Apply filter.")
+   await easy_apply.click()
+   print('Easy Apply Clicked')
+   await asyncio.sleep(5)
+   #Extract job listings
+   #await extract_jobs(page)
+
+   #Apply for job
+   await apply_jobs(page)
 
 async def open_browser(playwright: Playwright, url: str)-> None:
    #opening browser in UI Visible mode
@@ -67,31 +106,34 @@ async def open_browser(playwright: Playwright, url: str)-> None:
       #expect(password_input).to_be_visible()
       await password_input.fill(PASSWORD)
 
-      # #Unchecking remember me
-      # checkbox = page.locator('input#rememberMeOptIn-checkbox')
-      # await checkbox.set_checked(False)
-      # await asyncio.sleep(10)
+      #Unchecking remember me
+      checkbox = page.get_by_text("Keep me logged in")
+      await checkbox.click()
+      #checkbox = page.locator("input#rememberMeOptIn-checkbox")
+      # if await checkbox.is_checked():
+      #    await checkbox.set_checked(False)
+      #await asyncio.sleep(10)
 
       # Click the login button
       login_button = page.locator('button.btn__primary--large[type="submit"]')
       #expect(login_button).to_be_visible()
       await login_button.click()
 
-      # await asyncio.sleep(10)
+      await asyncio.sleep(5)
+      print("Login successful!!!")
 
-      if(page.locator('#input__email_verification_pin').is_visible()==True):
-         #Entering verification code
-         verification_code_input = page.locator('#input__email_verification_pin')
-         user_input = input("Enter the verification code: ")
-         await verification_code_input.fill(user_input)
-
-         #Submitting verification
-         submit_button = page.locator('#email-pin-submit-button')
-         await submit_button.click()
-      else:
-         print(f'No code required')
-
-      await asyncio.sleep(10)
+      # #If asked for verification pin
+      # if(page.locator('#input__email_verification_pin').is_visible()==True):
+      #    #Entering verification code
+      #    verification_code_input = page.locator('#input__email_verification_pin')
+      #    user_input = input("Enter the verification code: ")
+      #    await verification_code_input.fill(user_input)
+      #
+      #    #Submitting verification
+      #    submit_button = page.locator('#email-pin-submit-button')
+      #    await submit_button.click()
+      # else:
+      #    print(f'No code required')
 
       # Proceed to job search after login
       await job_search(page, role, location)
@@ -103,13 +145,11 @@ async def open_browser(playwright: Playwright, url: str)-> None:
       #Closing broswer session
       await browser.close()
 
-
-
 async def main() -> None:
    async with async_playwright() as playwright:
       await open_browser(
          playwright=playwright,
-         url=url,
+         url=url
       )
 
 if __name__ == '__main__':
