@@ -20,8 +20,11 @@
 #
 #
 #
-import asyncio
+import asyncio, requests
+import math
+
 from playwright.async_api import Page, Playwright, Response, async_playwright
+from bs4 import BeautifulSoup
 
 # Variables
 EMAIL = "groovewgana@gmail.com"
@@ -32,9 +35,41 @@ location = "United States"
 
 async def extract_jobs(page: Page) -> None:
    print("Extracting jobs into an excel sheet")
+   #print(page.url)
+   target_url = page.url
+
+   text = await page.locator("small span").inner_text()
+   #print(text)
+
+   #Splitting text into result and converting its type to integer
+   #eg: 647 results ---> 647
+   number_of_jobs_filtered = int(text.split(" ")[0])
+   print(number_of_jobs_filtered)
+
+   loops = math.ceil(number_of_jobs_filtered/25)
+
+   for i in range(0,loops):
+      #Invoking the get request for API to get the response after hitting the target_url
+      res = requests.get(target_url.format(i))
+      #parses the html response from the get request
+      soup = BeautifulSoup(res.text,'html.parser')
+      #Extracts all the <li> elements
+      alljobs_on_this_page=soup.find_all("li")
+      print(alljobs_on_this_page)
+
+
+
+   soup=BeautifulSoup(res.text,'html.parser')
+   alljobs_on_this_page=soup.find_all("li")
+
+   for x in range(0,len(alljobs_on_this_page)):
+      jobid = alljobs_on_this_page[x].find("div",{"class":"base-card"}).get('data-entity-urn').split(":")[3]
+      l.append(jobid)
+
 
 async def apply_jobs(page: Page) -> None:
    print("Applying for jobs")
+   #print(page.url)
 
 
 async def job_search(page: Page, role: str, location: str) -> None:
@@ -77,15 +112,16 @@ async def job_search(page: Page, role: str, location: str) -> None:
    await easy_apply.click()
    print('Easy Apply Clicked')
    await asyncio.sleep(5)
-   #Extract job listings
-   #await extract_jobs(page)
 
-   #Apply for job
-   await apply_jobs(page)
+   #Extract job listings
+   await extract_jobs(page)
+
+   # #Apply for job
+   # await apply_jobs(page)
 
 async def open_browser(playwright: Playwright, url: str)-> None:
    #opening browser in UI Visible mode
-   browser = await playwright.chromium.launch(headless=False)
+   browser = await playwright.chromium.launch(headless=True)
 
    #opening a new browser page
    page = await browser.new_page(viewport={'width': 1600, 'height': 900})
