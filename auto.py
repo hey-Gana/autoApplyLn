@@ -23,7 +23,8 @@
 import asyncio, requests, pandas as pd
 import math
 
-from playwright.async_api import Page, Playwright, Response, async_playwright
+from playwright.async_api import Playwright, Response, async_playwright
+from playwright.sync_api import Page
 from bs4 import BeautifulSoup
 
 # Variables
@@ -33,192 +34,75 @@ url = "https://www.linkedin.com/login"
 role="Data Analyst"
 location = "United States"
 
-# async def extract_jobs(page: Page) -> None:
-#    print("Extracting jobs into an excel sheet")
-#    #print(page.url)
-#    target_url = page.url
-#
-#    # Get the number of jobs from the page
-#    try:
-#       text = await page.locator("small span").inner_text()
-#       number_of_jobs_filtered = int(text.split(" ")[0])  # eg: '647 results' -> 647
-#       print(f"Number of jobs filtered: {number_of_jobs_filtered}")
-#    except Exception as e:
-#       print(f"Error while fetching number of jobs: {e}")
-#       return
-#
-#    html_response = await page.content()
-#    soup = BeautifulSoup(html_response, 'html.parser')
-#
-#
-# # Find all <a> tags which contain links
-#    links = soup.find_all("a", href=True)
-#
-#    # Extract the href attribute from each <a> tag
-#    for link in links:
-#       all_links = [link.get('href')]
-#       if "/jobs/view/" in link['href']:
-#          job_links.append(link['href'])
-#
-#
-#    print(all_links)
-#    print("Length: ", len(all_links) )
-#    print(job_links)
-
-# # Store the HTML response
-   # response_html = await page.content()
-   #
-   # # Parse the response with BeautifulSoup
-   # soup = BeautifulSoup(response_html, "html.parser")
-   #
-   # # Extract job cards
-   # jobs = []
-   # job_cards = soup.find_all("div", class_="ember-view")
-   # print(f"Found {len(job_cards)} job cards.")
-   #
-   # for job_card in job_cards:
-   #    try:
-   #       # Extract job details
-   #       job_title = job_card.find("h3", class_="base-search-card__title").get_text(strip=True)
-   #       print("jobs_title: "+job_title)
-   #       company_name = job_card.find("h4", class_="base-search-card__subtitle").get_text(strip=True)
-   #       print("jobs_subtitle: "+ company_name)
-   #       location = job_card.find("span", class_="job-search-card__location").get_text(strip=True)
-   #       print("jobs_loc: "+location)
-   #       job_url = job_card.find("a", class_="base-card__full-link")["href"]
-   #       print("jobs_url: "+job_url)
-   #
-   #       jobs.append({
-   #          "Job Title": job_title,
-   #          "Company": company_name,
-   #          "Location": location,
-   #          "Job URL": job_url
-   #       })
-   #    except Exception as e:
-   #       print(f"Error parsing job card: {e}")
-   #
-   #    if jobs:
-   #       df = pd.DataFrame(jobs)
-   #       df.to_excel("linkedin_jobs_response_data.xlsx", index=False, engine="openpyxl")
-   #       print("Job data saved to linkedin_jobs_response_data.xlsx")
-   #    else:
-   #       print("No job data found.")
-   #
-   #
-   # print(jobs)
-   # # Calculate the number of pages to iterate over
-   # loops = math.ceil(number_of_jobs_filtered / 25)
-   # print(f"Total pages to process: {loops}")
-   #
-   #
-   # # Initialize a list to store job IDs
-   # job_ids = []
-   #
-   # for i in range(loops):
-   #    try:
-   #       # Format the URL for pagination
-   #       paginated_url = target_url.format(i)
-   #       print(f"Fetching page: {paginated_url}")
-   #
-   #       # Make the GET request to fetch data
-   #       res = requests.get(paginated_url)
-   #
-   #       if res.status_code != 200:
-   #          print(f"Failed to fetch data for page {i}, status code: {res.status_code}")
-   #          continue
-   #
-   #       # Parse the HTML response
-   #       soup = BeautifulSoup(res.text, 'html.parser')
-   #
-   #       # Find all job items
-   #       all_jobs_on_this_page = soup.find_all("li")
-   #       for job in all_jobs_on_this_page:
-   #          try:
-   #             jobid = job.find("div", {"class": "base-card"}).get('data-entity-urn').split(":")[3]
-   #             job_ids.append(jobid)
-   #          except Exception as inner_e:
-   #             print(f"Error extracting job ID on page {i}: {inner_e}")
-   #             continue
-   #
-   #    except Exception as e:
-   #       print(f"Error processing page {i}: {e}")
-   #       continue
-   #
-   # print("Extracted Job IDs:")
-   # print(job_ids)
-
-async def extract_jobs(page: Page) -> None:
+def extract_jobs(page: Page) -> None:
    """
    Extract job links from the current page and print them.
-
    :param page: Playwright Page object
    """
+   all_job_ids = []
    print("Extracting jobs into an Excel sheet")
-   target_url = page.url
-   print(f"Target URL: {target_url}")
+   page_url = page.url
+   print(f"Page URL: {page_url}")
+   target_url = page_url + "&start={}"
 
    # Get the number of jobs from the page
    try:
-      text = await page.locator("small span").inner_text()
+      text = page.locator("small span").inner_text()  # Synchronous call
       number_of_jobs_filtered = int(text.split(" ")[0])  # e.g., '647 results' -> 647
       print(f"Number of jobs filtered: {number_of_jobs_filtered}")
    except Exception as e:
-      print(f"Error while fetching the number of jobs: {e}")
+      print(f"Error while fetching number of jobs: {e}")
       return
 
-   # Get the page content
-   try:
-      html_response = await page.content()
-      soup = BeautifulSoup(html_response, 'html.parser')
-   #    # Find all <a> tags which contain links
-   #    links = soup.find_all("a", href=True)
-   #    job_links = []
-   #
-   #    print("# of Links in page: ", len(links))
-   #    for link in links:
-   #       print(link)
-   #
-   #    # Filter job links
-   #    for link in links:
-   #       href = link.get('href')
-   #       if "/jobs/view/" in href:
-   #          job_links.append(href)
-   #
-   #    # Print job links and their count
-   #    print(f"Extracted {len(job_links)} job links:")
-   #    for job_link in job_links:
-   #       print(job_link)
-   #
+   number_of_pages = math.ceil(number_of_jobs_filtered / 25)
+   print(f"Number of pages: {number_of_pages}")
+
+   # Loop through pages to extract job IDs
+   for i in range(0, number_of_pages):
+      # Format URL for Pagination
+      paginated_url = target_url.format(i * 25)
+      print(f"Visiting: {paginated_url}")
+
+      # Navigate to the paginated URL
+      page.goto(paginated_url)
+
+      # Wait for the job list container to load
+      page.wait_for_selector('div.scaffold-layout__list', timeout=10000)
+
+      try:
+         # Fetch the page content and parse with BeautifulSoup
+         html_response = page.content()
+         soup = BeautifulSoup(html_response, 'html.parser')
+
+         # Select job items using a stable structure
+         job_items = page.locator('li[data-occludable-job-id]').all()
+
+         if not job_items:
+            print(f"No jobs found on page {i + 1}.")
+            continue
+
+         # Extract job IDs
+         job_ids = [job.get_attribute('data-occludable-job-id') for job in job_items]
+         print(f"Extracted {len(job_ids)} job IDs from page {i + 1}.")
+
+         # Add the job IDs to the overall list
+         all_job_ids.extend(job_ids)
+
+      except Exception as e:
+         print(f"Error while fetching job IDs on page {i + 1}: {e}")
+         continue
+
+   # Print all extracted job IDs
+   print(f"Total extracted job IDs: {len(all_job_ids)}")
+   for job_id in all_job_ids:
+      print(job_id)
 
 
-      #Finds element on web page where the job cards are mentioned
-      elements = soup.find('div', {'class': 'scaffold-layout__list', 'tabindex': '-1'})
-      # Extract href links from the elements
-      href_links = []
-      for element in elements:
-         links = element.find_all('a', href=True)  # Find all <a> tags with href attribute
-         for link in links:
-            href_links.extend(link['href'])
-
-      print(len(href_links))
-      for i in range(len(href_links)):
-         print(href_links[i])
-
-   except Exception as e:
-      print(f"Error while extracting job links: {e}")
-
-#document.querySelectorAll('ul.rjmNTMLkNvPwnJnFTCybgSFpgYGQ li')
-
-#document.querySelector("li#ember440 a[href]")
-
-# steps to do:
-# Parse the html response and extract the list items under the unordered list
-# Find the ids
-# For each id, extract the href
 
 async def apply_jobs(page: Page) -> None:
    print("Applying for jobs")
    #print(page.url)
+
 
 async def job_search(page: Page, role: str, location: str) -> None:
    #Verify Navbar is loaded and jobs icon is visible
@@ -262,14 +146,14 @@ async def job_search(page: Page, role: str, location: str) -> None:
    await asyncio.sleep(5)
 
    #Extract job listings
-   await extract_jobs(page)
+   extract_jobs(page)
 
    # #Apply for job
    # await apply_jobs(page)
 
 async def open_browser(playwright: Playwright, url: str)-> None:
    #opening browser in UI Visible mode
-   browser = await playwright.chromium.launch(headless=True)
+   browser = await playwright.chromium.launch(headless=False)
 
    #opening a new browser page
    page = await browser.new_page(viewport={'width': 1600, 'height': 900})
@@ -338,8 +222,6 @@ async def main() -> None:
 
 if __name__ == '__main__':
    asyncio.run(main())
-
-
 
 
 
