@@ -1,227 +1,134 @@
-# from playwright.sync_api import Playwright, sync_playwright
-#
-# def run(playwright: Playwright, *, url: str) -> dict:
-#     browser = playwright.chromium.launch(headless=False)
-#     page = browser.new_page()
-#     page.set_viewport_size({"width": 1600, "height": 900})  # Set the viewport size
-#     page.goto(url)
-#     title = page.title()  # Retrieve the page's title
-#     browser.close()  # Ensure the browser is closed
-#     return {'url': url, 'title': title}
-#
-# def main() -> None:
-#     # Use sync_playwright context manager to close the Playwright instance automatically
-#     with sync_playwright() as playwright:
-#         result = run(playwright, url='https://www.google.com')
-#         print(result)
-#
-# if __name__ == '__main__':
-#     main()
-#
-#
-#
-import asyncio, requests, pandas as pd
 import math
-
-from playwright.async_api import Playwright, Response, async_playwright
-from playwright.sync_api import Page
+from playwright.sync_api import Playwright, sync_playwright
 from bs4 import BeautifulSoup
 
 # Variables
 EMAIL = "groovewgana@gmail.com"
 PASSWORD = "HiG@na2024"
 url = "https://www.linkedin.com/login"
-role="Data Analyst"
+role = "Data Analyst"
 location = "United States"
 
-def extract_jobs(page: Page) -> None:
+def extract_jobs(page) -> None:
    """
    Extract job links from the current page and print them.
    :param page: Playwright Page object
    """
-   all_job_ids = []
    print("Extracting jobs into an Excel sheet")
-   page_url = page.url
-   print(f"Page URL: {page_url}")
-   target_url = page_url + "&start={}"
+   target_url = page.url
+   print(f"Target URL: {target_url}")
 
    # Get the number of jobs from the page
    try:
-      text = page.locator("small span").inner_text()  # Synchronous call
+      text = page.locator("small span").inner_text()
       number_of_jobs_filtered = int(text.split(" ")[0])  # e.g., '647 results' -> 647
       print(f"Number of jobs filtered: {number_of_jobs_filtered}")
    except Exception as e:
-      print(f"Error while fetching number of jobs: {e}")
+      print(f"Error while fetching the number of jobs: {e}")
       return
 
-   number_of_pages = math.ceil(number_of_jobs_filtered / 25)
-   print(f"Number of pages: {number_of_pages}")
+   # Wait for the job list container to load
+   page.wait_for_selector('div.scaffold-layout__list', timeout=10000)
 
-   # Loop through pages to extract job IDs
-   for i in range(0, number_of_pages):
-      # Format URL for Pagination
-      paginated_url = target_url.format(i * 25)
-      print(f"Visiting: {paginated_url}")
+   # Get job ids of jobs listed in the current page
+   try:
+      html_response = page.content()
+      soup = BeautifulSoup(html_response, 'html.parser')
 
-      # Navigate to the paginated URL
-      page.goto(paginated_url)
+      # Select job items using a stable structure
+      job_items = soup.find_all('li', attrs={'data-occludable-job-id': True})
 
-      # Wait for the job list container to load
-      page.wait_for_selector('div.scaffold-layout__list', timeout=10000)
+      if not job_items:
+         print("No jobs found on the current page.")
+         return
 
-      try:
-         # Fetch the page content and parse with BeautifulSoup
-         html_response = page.content()
-         soup = BeautifulSoup(html_response, 'html.parser')
+      # Extract and print job IDs
+      job_ids = [job.get('data-occludable-job-id') for job in job_items]
+      print(f"Extracted {len(job_ids)} job IDs.")
+      for job_id in job_ids:
+         print(job_id)
+   except Exception as e:
+      print(f"Error while fetching job_ids: {e}")
+      return
 
-         # Select job items using a stable structure
-         job_items = page.locator('li[data-occludable-job-id]').all()
-
-         if not job_items:
-            print(f"No jobs found on page {i + 1}.")
-            continue
-
-         # Extract job IDs
-         job_ids = [job.get_attribute('data-occludable-job-id') for job in job_items]
-         print(f"Extracted {len(job_ids)} job IDs from page {i + 1}.")
-
-         # Add the job IDs to the overall list
-         all_job_ids.extend(job_ids)
-
-      except Exception as e:
-         print(f"Error while fetching job IDs on page {i + 1}: {e}")
-         continue
-
-   # Print all extracted job IDs
-   print(f"Total extracted job IDs: {len(all_job_ids)}")
-   for job_id in all_job_ids:
-      print(job_id)
-
-
-
-async def apply_jobs(page: Page) -> None:
+def apply_jobs(page):
    print("Applying for jobs")
-   #print(page.url)
 
-
-async def job_search(page: Page, role: str, location: str) -> None:
-   #Verify Navbar is loaded and jobs icon is visible
+def job_search(page, role, location):
    navbar = page.get_by_label("Global Navigation")
-   await navbar.is_visible()
+   navbar.is_visible()
 
    job_icon = page.get_by_role("link", name="Jobs")
-   await job_icon.is_visible()
-   # Click on the "Jobs" icon
-   await job_icon.click()
+   job_icon.is_visible()
+   job_icon.click()
    print('Clicked on Jobs icon')
-   await asyncio.sleep(2)
+   page.wait_for_timeout(2000)
 
-   #Search for specified role and location
    role_search = page.get_by_role("combobox", name="Search by title, skill, or")
-   await role_search.fill(role)
+   role_search.fill(role)
    print('Role filled')
-   await asyncio.sleep(2)
+   page.wait_for_timeout(2000)
    loc_search = page.get_by_role("combobox", name="City, state, or zip code")
-   await loc_search.fill(location)
+   loc_search.fill(location)
    click_loc_search = page.get_by_label("Global Navigation").get_by_text(location, exact=True)
-   await click_loc_search.click()
+   click_loc_search.click()
    print('Location filled')
-   await asyncio.sleep(2)
+   page.wait_for_timeout(2000)
 
-   #Search filter for date
    job_posting_date = page.get_by_label("Date posted filter. Clicking")
-   await job_posting_date.click()
+   job_posting_date.click()
    date_option = page.get_by_text("Past 24 hours", exact=True)
-   await date_option.click()
-   await asyncio.sleep(5)
+   date_option.click()
+   page.wait_for_timeout(5000)
    show_jobs = page.get_by_role("button", name="Apply current filter to show")
-   await show_jobs.click()
+   show_jobs.click()
    print('Date Filter Applied')
-   await asyncio.sleep(5)
+   page.wait_for_timeout(5000)
 
-   #Easy Apply Option
    easy_apply = page.get_by_label("Easy Apply filter.")
-   await easy_apply.click()
+   easy_apply.click()
    print('Easy Apply Clicked')
-   await asyncio.sleep(5)
+   page.wait_for_timeout(5000)
 
-   #Extract job listings
    extract_jobs(page)
 
-   # #Apply for job
-   # await apply_jobs(page)
-
-async def open_browser(playwright: Playwright, url: str)-> None:
-   #opening browser in UI Visible mode
-   browser = await playwright.chromium.launch(headless=False)
-
-   #opening a new browser page
-   page = await browser.new_page(viewport={'width': 1600, 'height': 900})
+def open_browser(playwright: Playwright, url: str):
+   browser = playwright.chromium.launch(headless=True)
+   page = browser.new_page(viewport={'width': 1600, 'height': 900})
 
    try:
-      #opening the url in the browser page
-      await page.goto(url)
+      page.goto(url)
+      page.wait_for_timeout(1000)
 
-      await asyncio.sleep(1)
-
-      # Wait for the email input to be visible and fill it
       email_input = page.get_by_label('Email or phone')
-      #expect(email_input).to_be_visible()
-      await email_input.fill(EMAIL)
+      email_input.fill(EMAIL)
 
-      # Wait for the password input to be visible and fill it
       password_input = page.get_by_label('Password')
-      #expect(password_input).to_be_visible()
-      await password_input.fill(PASSWORD)
+      password_input.fill(PASSWORD)
 
-      #Unchecking remember me
       checkbox = page.get_by_text("Keep me logged in")
-      await checkbox.click()
-      #checkbox = page.locator("input#rememberMeOptIn-checkbox")
-      # if await checkbox.is_checked():
-      #    await checkbox.set_checked(False)
-      #await asyncio.sleep(10)
+      checkbox.click()
 
-      # Click the login button
       login_button = page.locator('button.btn__primary--large[type="submit"]')
-      #expect(login_button).to_be_visible()
-      await login_button.click()
+      login_button.click()
 
-      await asyncio.sleep(5)
+      page.wait_for_timeout(5000)
       print("Login successful!!!")
 
-      # #If asked for verification pin
-      # if(page.locator('#input__email_verification_pin').is_visible()==True):
-      #    #Entering verification code
-      #    verification_code_input = page.locator('#input__email_verification_pin')
-      #    user_input = input("Enter the verification code: ")
-      #    await verification_code_input.fill(user_input)
-      #
-      #    #Submitting verification
-      #    submit_button = page.locator('#email-pin-submit-button')
-      #    await submit_button.click()
-      # else:
-      #    print(f'No code required')
-
-      # Proceed to job search after login
-      await job_search(page, role, location)
+      job_search(page, role, location)
 
    except Exception as e:
-      print(f'Error occured: {e}')
+      print(f'Error occurred: {e}')
 
    finally:
-      #Closing broswer session
-      await browser.close()
+      browser.close()
 
-async def main() -> None:
-   async with async_playwright() as playwright:
-      await open_browser(
+def main():
+   with sync_playwright() as playwright:
+      open_browser(
          playwright=playwright,
          url=url
       )
 
 if __name__ == '__main__':
-   asyncio.run(main())
-
-
-
+   main()
