@@ -1,5 +1,6 @@
 import math
 from playwright.sync_api import Playwright, sync_playwright
+from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 from bs4 import BeautifulSoup
 
 # Variables
@@ -8,15 +9,45 @@ PASSWORD = "HiG@na2024"
 url = "https://www.linkedin.com/login"
 role = "Data Analyst"
 location = "United States"
+params_to_remove = ["currentJobId" , "distance", "geoId"]
 
 def extract_jobs(page) -> None:
    """
    Extract job links from the current page and print them.
    :param page: Playwright Page object
    """
+   all_job_ids =[]
    print("Extracting jobs into an Excel sheet")
-   target_url = page.url
-   print(f"Target URL: {target_url}")
+
+   # Parse the URL -splits it into its different components such as scheme , netloc , path, params, query etc
+   parsed_url = urlparse(page.url)
+
+   # Parse the query parameters into a dictionary - parse_qs gives a dictionary of key:value pair of all the query components
+   #Eg: "currentJobID":"331092309", "keywords": "Data Analyst" etc.
+   #Removes the & in query component
+   query_params = parse_qs(parsed_url.query)
+
+   # Remove specified parameters
+   for param in params_to_remove:
+      query_params.pop(param, None)
+
+   # Reconstruct the query string
+   updated_query = urlencode(query_params, doseq=True)
+
+   # Reconstruct the URL with the updated query string
+   updated_url = urlunparse(
+      (
+         parsed_url.scheme,
+         parsed_url.netloc,
+         parsed_url.path,
+         parsed_url.params,
+         updated_query,
+         parsed_url.fragment,
+      )
+   )
+
+   target_url = updated_url+"&start={}"
+   #print(f"Target URL: {target_url}")
 
    # Get the number of jobs from the page
    try:
@@ -27,29 +58,50 @@ def extract_jobs(page) -> None:
       print(f"Error while fetching the number of jobs: {e}")
       return
 
-   # Wait for the job list container to load
-   page.wait_for_selector('div.scaffold-layout__list', timeout=10000)
 
-   # Get job ids of jobs listed in the current page
-   try:
-      html_response = page.content()
-      soup = BeautifulSoup(html_response, 'html.parser')
+   number_of_pages = math.ceil(number_of_jobs_filtered/25)
+   print(f"Number of pages : {number_of_pages}")
 
-      # Select job items using a stable structure
-      job_items = soup.find_all('li', attrs={'data-occludable-job-id': True})
+   for i in range (number_of_pages):
+      paginated_url = target_url.format(i*25)
+      print(f"Paginated URL : {paginated_url}")
+      page.goto(target_url)
+      print("In Paginated URL")
+      #Page load time
+      page.wait_for_timeout(10000)
+      # Wait for the job list container to load
+      page.wait_for_selector('div.scaffold-layout__list', timeout=10000)
+      # Get job ids of jobs listed in the current page
+      try:
+         html_response = page.content()
+         soup = BeautifulSoup(html_response, 'html.parser')
 
-      if not job_items:
-         print("No jobs found on the current page.")
+         # Select job items using a stable structure
+         job_items = soup.find_all('li', attrs={'data-occludable-job-id': True})
+
+         if not job_items:
+            print("No jobs found on the current page.")
+            continue
+
+         # Extract and print job IDs
+         for job in job_items:
+            job_ids = job.get('data-occludable-job-id')
+            print(job_ids)
+
+         # print(f"Extracted {len(job_ids)} job IDs.")
+         # for job_id in job_ids:
+         #    print(job_id)
+
+         all_job_ids.append(job_ids)
+
+      except Exception as e:
+         print(f"Error while fetching job_ids: {e}")
          return
 
-      # Extract and print job IDs
-      job_ids = [job.get('data-occludable-job-id') for job in job_items]
-      print(f"Extracted {len(job_ids)} job IDs.")
-      for job_id in job_ids:
-         print(job_id)
-   except Exception as e:
-      print(f"Error while fetching job_ids: {e}")
-      return
+   print(f"Total extracted job IDs: {len(all_job_ids)}")
+   for job_id in all_job_ids:
+      print(job_id)
+
 
 def apply_jobs(page):
    print("Applying for jobs")
