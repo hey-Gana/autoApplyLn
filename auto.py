@@ -1,52 +1,98 @@
 import math
 from playwright.sync_api import Playwright, sync_playwright
-from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 from bs4 import BeautifulSoup
+from openpyxl import Workbook, load_workbook
+import os
 
 # Variables
 EMAIL = "groovewgana@gmail.com"
 PASSWORD = "HiG@na2024"
 url = "https://www.linkedin.com/login"
-role = "Data Analyst"
+role = "ceo"
 location = "United States"
-params_to_remove = ["currentJobId" , "distance", "geoId"]
+all_job_ids = []
+filename = "LinkedInJobs.xlsx"
+
+def write_to_excel():
+   """
+    Writes extracted job IDs and related data into an Excel sheet.
+   """
+   # print(all_job_ids)
+   # print(len(all_job_ids))
+   sheet_name = "JobData"
+
+   #Check if file already exists
+   if os.path.exists(filename):
+      workbook = load_workbook(filename)
+      print("File exists already")
+   else:
+      workbook = Workbook()
+      # Rename the default first sheet to 'JobData'
+      sheet = workbook.active  # Access the default sheet
+      sheet.title = "JobData"
+      sheet.append(["Job ID","Job URL", "Date","HR ID", "Applied Status"])
+
+
+   # Check if the sheet exists, otherwise create it
+   if sheet_name in workbook.sheetnames:
+      sheet = workbook[sheet_name]
+   
+
+   #Writing into the sheet
+   for job_id in all_job_ids:
+      sheet.append([ job_id,None,None,None,None])
+
+   #save the workbook
+   workbook.save(filename)
+   print(f"Saved {filename}")
+
+def extract_job_ids(page):
+#Code for extracting job ids-
+   paginated_url = page.url
+   print(f"Paginated URL : {paginated_url}")
+   page.goto(paginated_url)
+   #Page load time
+   page.wait_for_timeout(10000)
+   # Wait for the job list container to load
+   page.wait_for_selector('div.scaffold-layout__list', timeout=10000)
+   # Get job ids of jobs listed in the current page
+   try:
+      html_response = page.content()
+      soup = BeautifulSoup(html_response, 'html.parser')
+
+      # Select job items using a stable structure
+      job_items = soup.find_all('li', attrs={'data-occludable-job-id': True})
+
+      if not job_items:
+         print("No jobs found on the current page.")
+
+      # Extract and print job IDs
+      for job in job_items:
+         job_ids = job.get('data-occludable-job-id')
+         #print(job_ids)
+         all_job_ids.append(job_ids)
+
+   except Exception as e:
+      print(f"Error while fetching job_ids: {e}")
+      return
+
+   #Print the total number of job ids extracted for the given user inputs
+   # print(f"Total extracted job IDs: {len(all_job_ids)}")
+   # for job_id in all_job_ids:
+   #    print(job_id)
+
+
+
+
 
 def extract_jobs(page) -> None:
    """
    Extract job links from the current page and print them.
    :param page: Playwright Page object
    """
-   all_job_ids =[]
-   print("Extracting jobs into an Excel sheet")
+   #print("Extracting jobs into an Excel sheet")
 
-   # Parse the URL -splits it into its different components such as scheme , netloc , path, params, query etc
-   parsed_url = urlparse(page.url)
-
-   # Parse the query parameters into a dictionary - parse_qs gives a dictionary of key:value pair of all the query components
-   #Eg: "currentJobID":"331092309", "keywords": "Data Analyst" etc.
-   #Removes the & in query component
-   query_params = parse_qs(parsed_url.query)
-
-   # Remove specified parameters
-   for param in params_to_remove:
-      query_params.pop(param, None)
-
-   # Reconstruct the query string
-   updated_query = urlencode(query_params, doseq=True)
-
-   # Reconstruct the URL with the updated query string
-   updated_url = urlunparse(
-      (
-         parsed_url.scheme,
-         parsed_url.netloc,
-         parsed_url.path,
-         parsed_url.params,
-         updated_query,
-         parsed_url.fragment,
-      )
-   )
-
-   target_url = updated_url+"&start={}"
+   #target_url = page.url+"&start={}"
    #print(f"Target URL: {target_url}")
 
    # Get the number of jobs from the page
@@ -62,46 +108,37 @@ def extract_jobs(page) -> None:
    number_of_pages = math.ceil(number_of_jobs_filtered/25)
    print(f"Number of pages : {number_of_pages}")
 
-   for i in range (number_of_pages):
-      paginated_url = target_url.format(i*25)
-      print(f"Paginated URL : {paginated_url}")
-      page.goto(target_url)
-      print("In Paginated URL")
-      #Page load time
-      page.wait_for_timeout(10000)
-      # Wait for the job list container to load
-      page.wait_for_selector('div.scaffold-layout__list', timeout=10000)
-      # Get job ids of jobs listed in the current page
-      try:
-         html_response = page.content()
-         soup = BeautifulSoup(html_response, 'html.parser')
+   #Code for hitting each page url:
+   print("Hitting each url attempt")
 
-         # Select job items using a stable structure
-         job_items = soup.find_all('li', attrs={'data-occludable-job-id': True})
+   #wait for buttons to load
+   #page.wait_for_selector("li[data-test-pagination-page-btn]", timeout=5000)
 
-         if not job_items:
-            print("No jobs found on the current page.")
-            continue
+   buttons = page.locator("li[data-test-pagination-page-btn]")
+   tot_buttons = buttons.count()
+   print(tot_buttons)
+   url_list = []
+   if tot_buttons == number_of_pages:
+      print("Math Matches")
+   else: print("No Match")
+   for i in range(0,tot_buttons):
+         try:
+            print(f"Opening Paginated button in new window {i+1}")
+            # Click the button
+            buttons.nth(i).click()
+            # Wait for content to load (adjust selector for your use case)
+            page.wait_for_timeout(5000)
+            #page.wait_for_selector("div.jobs-search-results-list", timeout=5000)
+            # Print current page information
+            current_page = page.locator("div.artdeco-pagination__page-state").inner_text()
+            print(f"Currently on: {current_page}")
+            print(page.url)
+            extract_job_ids(page)
 
-         # Extract and print job IDs
-         for job in job_items:
-            job_ids = job.get('data-occludable-job-id')
-            print(job_ids)
+         except Exception as e:
+            print(f"Error clicking button {i + 1}: {e}")
 
-         # print(f"Extracted {len(job_ids)} job IDs.")
-         # for job_id in job_ids:
-         #    print(job_id)
-
-         all_job_ids.append(job_ids)
-
-      except Exception as e:
-         print(f"Error while fetching job_ids: {e}")
-         return
-
-   print(f"Total extracted job IDs: {len(all_job_ids)}")
-   for job_id in all_job_ids:
-      print(job_id)
-
+   write_to_excel()
 
 def apply_jobs(page):
    print("Applying for jobs")
@@ -110,7 +147,7 @@ def job_search(page, role, location):
    navbar = page.get_by_label("Global Navigation")
    navbar.is_visible()
 
-   job_icon = page.get_by_role("link", name="Jobs")
+   job_icon = page.get_by_role("link", name="Jobs", exact=True)
    job_icon.is_visible()
    job_icon.click()
    print('Clicked on Jobs icon')
