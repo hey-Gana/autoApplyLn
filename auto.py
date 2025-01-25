@@ -3,15 +3,38 @@ from playwright.sync_api import Playwright, sync_playwright
 from bs4 import BeautifulSoup
 from openpyxl import Workbook, load_workbook
 import os
+import pandas as pd
+from datetime import datetime
 
 # Variables
 EMAIL = "groovewgana@gmail.com"
 PASSWORD = "HiG@na2024"
 url = "https://www.linkedin.com/login"
-role = "ceo"
+role = "Senior Data Analyst"
 location = "United States"
 all_job_ids = []
 filename = "LinkedInJobs.xlsx"
+
+def dupe_remove(filename):
+   # Getting filepath of the workbook
+   cwd = os.getcwd()
+   filepath = os.path.join(cwd, filename)
+   print("File path:", filepath)
+
+   # Create DataFrame from the Excel file
+   df = pd.read_excel(filepath)
+
+   # Remove duplicates and reset the index
+   df.drop_duplicates(inplace=True)
+   df.reset_index(drop=True, inplace=True)
+
+   # Print the updated DataFrame and its count
+   print("Updated DataFrame after removing duplicates:")
+   print(df.to_string())
+
+   # Write the updated DataFrame back to the Excel file
+   df.to_excel(filepath, index=False)
+   print("Updated data has been saved to the Excel file.")
 
 def write_to_excel():
    """
@@ -24,30 +47,35 @@ def write_to_excel():
    #Check if file already exists
    if os.path.exists(filename):
       workbook = load_workbook(filename)
+      sheet = workbook.active  # Access the default sheet
       print("File exists already")
    else:
+      #Create a new workboook
       workbook = Workbook()
       # Rename the default first sheet to 'JobData'
       sheet = workbook.active  # Access the default sheet
       sheet.title = "JobData"
+      #Columns to be added
       sheet.append(["Job ID","Job URL", "Date","HR ID", "Applied Status"])
 
+   # # Check if the sheet exists, otherwise create it
+   # if sheet_name in workbook.sheetnames:
+   #    sheet = workbook[sheet_name]
 
-   # Check if the sheet exists, otherwise create it
-   if sheet_name in workbook.sheetnames:
-      sheet = workbook[sheet_name]
-   
+   today_date = datetime.today().strftime('%Y-%m-%d')
 
    #Writing into the sheet
    for job_id in all_job_ids:
-      sheet.append([ job_id,None,None,None,None])
+      joburl = f"https://www.linkedin.com/jobs/view/{job_id}"
+      sheet.append([job_id,joburl,today_date,None,None])
 
    #save the workbook
    workbook.save(filename)
-   print(f"Saved {filename}")
+   #print(f"Saved {filename}")
+   dupe_remove(filename)
 
 def extract_job_ids(page):
-#Code for extracting job ids-
+   #Code for extracting job ids-
    paginated_url = page.url
    print(f"Paginated URL : {paginated_url}")
    page.goto(paginated_url)
@@ -80,10 +108,6 @@ def extract_job_ids(page):
    # print(f"Total extracted job IDs: {len(all_job_ids)}")
    # for job_id in all_job_ids:
    #    print(job_id)
-
-
-
-
 
 def extract_jobs(page) -> None:
    """
@@ -118,10 +142,11 @@ def extract_jobs(page) -> None:
    tot_buttons = buttons.count()
    print(tot_buttons)
    url_list = []
-   if tot_buttons == number_of_pages:
-      print("Math Matches")
-   else: print("No Match")
-   for i in range(0,tot_buttons):
+   if tot_buttons != number_of_pages and number_of_pages<=1:
+      print("No Match")
+   else: print("Math Matches")
+   if tot_buttons>1:
+      for i in range(0,tot_buttons):
          try:
             print(f"Opening Paginated button in new window {i+1}")
             # Click the button
@@ -138,10 +163,10 @@ def extract_jobs(page) -> None:
          except Exception as e:
             print(f"Error clicking button {i + 1}: {e}")
 
-   write_to_excel()
+   elif number_of_pages==1:
+      extract_job_ids(page)
 
-def apply_jobs(page):
-   print("Applying for jobs")
+   write_to_excel()
 
 def job_search(page, role, location):
    navbar = page.get_by_label("Global Navigation")
@@ -157,6 +182,7 @@ def job_search(page, role, location):
    role_search.fill(role)
    print('Role filled')
    page.wait_for_timeout(2000)
+
    loc_search = page.get_by_role("combobox", name="City, state, or zip code")
    loc_search.fill(location)
    click_loc_search = page.get_by_label("Global Navigation").get_by_text(location, exact=True)
@@ -166,6 +192,7 @@ def job_search(page, role, location):
 
    job_posting_date = page.get_by_label("Date posted filter. Clicking")
    job_posting_date.click()
+   page.wait_for_timeout(5000)
    date_option = page.get_by_text("Past 24 hours", exact=True)
    date_option.click()
    page.wait_for_timeout(5000)
@@ -174,15 +201,27 @@ def job_search(page, role, location):
    print('Date Filter Applied')
    page.wait_for_timeout(5000)
 
+   # Check if "No matching jobs found." message appears
+   check = page.get_by_text("No matching jobs found.")
+   if check.count() > 0:
+      print("No Jobs found for the given constraints of role, location, and time of posting")
+      return
+
    easy_apply = page.get_by_label("Easy Apply filter.")
    easy_apply.click()
    print('Easy Apply Clicked')
    page.wait_for_timeout(5000)
 
+   # Check if "No matching jobs found." message appears
+   check = page.get_by_text("No matching jobs found.")
+   if check.count() > 0:
+      print("No Jobs found for the given constraints of role, location, and time of posting")
+      return
+
    extract_jobs(page)
 
 def open_browser(playwright: Playwright, url: str):
-   browser = playwright.chromium.launch(headless=True)
+   browser = playwright.chromium.launch(headless=False)
    page = browser.new_page(viewport={'width': 1600, 'height': 900})
 
    try:
@@ -221,3 +260,4 @@ def main():
 
 if __name__ == '__main__':
    main()
+
