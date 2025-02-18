@@ -15,6 +15,9 @@ location = "United States"
 all_job_ids = []
 filename = "LinkedInJobs.xlsx"
 
+def applyJobs(page):
+   print("Applying for jobs by reading url from excel")
+
 def dupe_remove(filename):
    # Getting filepath of the workbook
    cwd = os.getcwd()
@@ -138,35 +141,41 @@ def extract_jobs(page) -> None:
    #wait for buttons to load
    #page.wait_for_selector("li[data-test-pagination-page-btn]", timeout=5000)
 
-   buttons = page.locator("li[data-test-pagination-page-btn]")
+   buttons = page.locator("ul.jobs-search-pagination__pages li.jobs-search-pagination__indicator button")
    tot_buttons = buttons.count()
-   print(tot_buttons)
+   print("Total Number of pages extracted: ",tot_buttons)
    url_list = []
-   if tot_buttons != number_of_pages and number_of_pages<=1:
+   if tot_buttons != number_of_pages : #and number_of_pages<=1
       print("No Match")
    else: print("Math Matches")
-   if tot_buttons>1:
-      for i in range(0,tot_buttons):
+
+   if tot_buttons > 1:
+      for i in range(tot_buttons):
          try:
-            print(f"Opening Paginated button in new window {i+1}")
+            print(f"Opening Paginated button in new window {i + 1}")
+
             # Click the button
             buttons.nth(i).click()
+
             # Wait for content to load (adjust selector for your use case)
             page.wait_for_timeout(5000)
             #page.wait_for_selector("div.jobs-search-results-list", timeout=5000)
             # Print current page information
-            current_page = page.locator("div.artdeco-pagination__page-state").inner_text()
-            print(f"Currently on: {current_page}")
-            print(page.url)
+            current_page = page.locator("div.jobs-search-pagination").inner_text()
+            print(f"Currently on: {page.url}")
+
+            # Extract jobs on the new page
             extract_job_ids(page)
 
          except Exception as e:
             print(f"Error clicking button {i + 1}: {e}")
 
-   elif number_of_pages==1:
+   elif number_of_pages == 1:
       extract_job_ids(page)
 
+
    write_to_excel()
+   applyJobs(page)
 
 def job_search(page, role, location):
    navbar = page.get_by_label("Global Navigation")
