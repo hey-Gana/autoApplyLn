@@ -22,11 +22,40 @@ yoe = 1
 ans = "No"
 
 
+def fill_form_until_review(page):
+    while True:
+        fill_form(page)  # Fill the form fields
+        print("in fill_form_until_review function")
+
+        try:
+            # Click "Continue to next step" if not on the review page
+            next_step_button = page.get_by_label("Continue to next step")
+            print("Next button present")
+            if next_step_button.is_visible():
+                next_step_button.click()
+                print("Clicked 'Continue to next step'. Moving forward.")
+                page.wait_for_timeout(2000)  # Small wait to let page load
+            else:
+                # Check if "Review your application" button is present
+                review_button = page.get_by_label("Review your application")
+                print("Review button present")
+                if review_button.is_visible():
+                    print("Reached the review page. Stopping form filling.")
+                    print("Clicking review button.")
+                    review_button.click()
+                    break  # Exit loop when review page is reached
+                else: print("No action button present")
+
+        except Exception as e:
+            print(f"Error encountered: {e}. Ending process.")
+            break  # Stop if any error occurs (e.g., button not found)
+
 def fill_form(page):
-    labels = page.locator("label[for]").all()  # Get all labels with a "for" attribute
+    labels = page.locator("label").all()  # Get all labels
 
     for label in labels:
         input_id = label.get_attribute("for")  # Get the associated input field ID
+
         if input_id:
             input_element = page.locator(f"xpath=//*[@id='{input_id}']")
 
@@ -39,61 +68,41 @@ def fill_form(page):
                     print(f"Filled '{label.inner_text().strip()}' with '1'")
 
                 elif input_type == "radio":
-                    option = input_element.locator("input[value='Yes']")
-                    if option.count() > 0:
-                        option.first.check()  # Select "Yes" if available
-                        print(f"Selected 'Yes' for '{label.inner_text().strip()}'")
-                    else:
-                        print(f"Skipped '{label.inner_text().strip()}' (No 'Yes' option)")
+                    if label.inner_text().strip().lower() == "yes":
+                        try:
+                            label.click()  # Click on the label
+                            print(f"Clicked on label: {label.inner_text().strip()}")
+                        except Exception as e:
+                            print(f"Could not click on label '{label.inner_text().strip()}': {e}")
+
+                    # try:
+                    #     yes_option = page.locator(f"xpath=//*[@id='{input_id}'][@value='Yes']")
+                    #     if yes_option.count() > 0:
+                    #         yes_option.first.check()
+                    #         print(f"Selected 'Yes' for '{label.inner_text().strip()}'")
+                    #     else:
+                    #         print(f"Skipped '{label.inner_text().strip()}' (No 'Yes' option found)")
+                    # except Exception as e:
+                    #     print(f"Could not select radio button for '{label.inner_text().strip()}': {e}")
 
                 elif tag_name == "select":
                     try:
                         input_element.select_option("Yes")  # Try selecting "Yes"
                         print(f"Selected 'Yes' for '{label.inner_text().strip()}'")
-                    except:
+                    except Exception:
                         print(f"Skipped '{label.inner_text().strip()}' (Option 'Yes' not found)")
+
+                elif input_type in ["checkbox"]:
+                    try:
+                        input_element.check()
+                        print(f"Checked '{label.inner_text().strip()}'")
+                    except Exception as e:
+                        print(f"Could not check '{label.inner_text().strip()}': {e}")
 
             except Exception as e:
                 print(f"Skipped '{label.inner_text().strip()}' due to error: {e}")
-
-# def extract_questions(page):
-#     # Get all labels with a "for" attribute
-#     labels = page.locator("label[for]").all()
-#
-#     text_questions = []
-#     radio_questions = []
-#     dropdown_questions = []
-#
-#     for label in labels:
-#         input_id = label.get_attribute("for")  # Get the "for" attribute
-#         if input_id:
-#             # Locate the corresponding input element
-#             input_element = page.locator(f"xpath=//*[@id='{input_id}']")
-#             input_type = input_element.get_attribute("type")
-#
-#             question = label.inner_text().strip()  # Extract the question text
-#
-#             # Categorize based on input type
-#             if input_type == "text":
-#                 text_questions.append(question)
-#             elif input_type == "radio":
-#                 radio_questions.append(question)
-#             elif input_element.evaluate("(el) => el.tagName.toLowerCase()") == "select":
-#                 dropdown_questions.append(question)  # Check if it's a dropdown (select element)
-#
-#     # Print extracted questions
-#     print("\nText Input Questions:")
-#     for q in text_questions:
-#         print("-", q)
-#
-#     print("\nRadio Button Questions:")
-#     for q in radio_questions:
-#         print("-", q)
-#
-#     print("\nDropdown Questions:")
-#     for q in dropdown_questions:
-#         print("-", q)
-
+        else:
+            print(f"Label '{label.inner_text().strip()}' has no 'for' attribute")
 
 def applyJobs(page,filename):
     print("In Applying for jobs by reading from excel")
@@ -102,14 +111,14 @@ def applyJobs(page,filename):
     # filepath = os.path.join(cwd,"/","chk.pdf")
     # print("File path:", filepath)
 
-    workbook = load_workbook(filename)
-    worksheet = workbook.active
-    job_id_url = []
-    for i,row in enumerate(worksheet):
-        if i == 0: #Skips Column Heading
-            continue
-        url = row[1].value
-        job_id_url.append(url)
+    # workbook = load_workbook(filename)
+    # worksheet = workbook.active
+    # job_id_url = []
+    # for i,row in enumerate(worksheet):
+    #     if i == 0: #Skips Column Heading
+    #         continue
+    #     url = row[1].value
+    #     job_id_url.append(url)
     # print("_____JOB URLS FROM EXCEL______")
     # print(job_id_url)
     # count =0
@@ -124,7 +133,7 @@ def applyJobs(page,filename):
     #     page.wait_for_timeout(3000)
 
     #opening a page and applying
-    page.goto("https://www.linkedin.com/jobs/view/4157818530 ")
+    page.goto("https://www.linkedin.com/jobs/view/4157865397/")
     #wait for page to load
     page.wait_for_timeout(5000)
     recruiter = page.get_by_role("heading", name="Meet the hiring team").is_visible()
@@ -167,7 +176,7 @@ def applyJobs(page,filename):
 
             page.wait_for_timeout(5000)
             #extract_questions(page)
-            fill_form(page)
+            fill_form_until_review(page)
 
 
         else:
@@ -176,7 +185,6 @@ def applyJobs(page,filename):
     except Exception as e:
         print(f"Error due to {e}")
         return
-
 
 def extract_jobs(page) -> None:
     """
