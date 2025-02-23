@@ -15,8 +15,180 @@ location = "United States"
 all_job_ids = []
 filename = "LinkedInJobs.xlsx"
 
-def applyJobs(page):
-   print("Applying for jobs by reading url from excel")
+def fill_form_until_review(page):
+    while True:
+        print("in fill_form_until_review function")
+        try:
+            fill_form(page)  # Fill the form fields
+        except Exception as e:
+            print(f"Exception: {e}")
+            break
+
+        try:
+            # Click "Continue to next step" if not on the review page
+            next_step_button = page.get_by_label("Continue to next step")
+            print("Next button present")
+            if next_step_button.is_visible():
+                next_step_button.click()
+                print("Clicked 'Continue to next step'. Moving forward.")
+                page.wait_for_timeout(2000)  # Small wait to let page load
+            else:
+                # Check if "Review your application" button is present
+                review_button = page.get_by_label("Review your application")
+                print("Review button present")
+                if review_button.is_visible():
+                    print("Reached the review page. Stopping form filling.")
+                    print("Clicking review button.")
+                    review_button.click()
+                    break  # Exit loop when review page is reached
+                else: print("No action button present")
+
+        except Exception as e:
+            print(f"Error encountered: {e}. Ending process.")
+            break  # Stop if any error occurs (e.g., button not found)
+
+def fill_form(page):
+    labels = page.locator("label").all()  # Get all labels
+
+    for label in labels:
+        input_id = label.get_attribute("for")  # Get the associated input field ID
+
+        if input_id:
+            input_element = page.locator(f"xpath=//*[@id='{input_id}']")
+
+            input_type = input_element.get_attribute("type")
+            tag_name = input_element.evaluate("(el) => el.tagName.toLowerCase()")  # Get tag name
+
+            if input_type == "text":
+                input_element.fill(str(yoe))  # Fill text fields with "1"
+                print(f"Filled '{label.inner_text().strip()}' with {yoe}")
+
+            elif input_type == "radio":
+                if label.inner_text().strip().lower() == "yes":
+                    try:
+                        label.click()  # Click on the label
+                        print(f"Clicked on label: {label.inner_text().strip()}")
+                    except Exception as e:
+                        print(f"Could not click on label '{label.inner_text().strip()}': {e}")
+
+                # try:
+                #     yes_option = page.locator(f"xpath=//*[@id='{input_id}'][@value='Yes']")
+                #     if yes_option.count() > 0:
+                #         yes_option.first.check()
+                #         print(f"Selected 'Yes' for '{label.inner_text().strip()}'")
+                #     else:
+                #         print(f"Skipped '{label.inner_text().strip()}' (No 'Yes' option found)")
+                # except Exception as e:
+                #     print(f"Could not select radio button for '{label.inner_text().strip()}': {e}")
+
+            elif tag_name == "select":
+                try:
+                    input_element.select_option("Yes")  # Try selecting "Yes"
+                    print(f"Selected 'Yes' for '{label.inner_text().strip()}'")
+                except Exception:
+                    print(f"Skipped '{label.inner_text().strip()}' (Option 'Yes' not found)")
+
+            elif input_type in ["checkbox"]:
+                try:
+                    input_element.check()
+                    print(f"Checked '{label.inner_text().strip()}'")
+                except Exception as e:
+                    print(f"Could not check '{label.inner_text().strip()}': {e}")
+
+
+
+
+        else:
+            print(f"Label '{label.inner_text().strip()}' has no 'for' attribute")
+            break
+
+def applyJobs(page,filename):
+    print("In Applying for jobs by reading from excel")
+    #reading job url from excel and storing in an array
+    # cwd = os.getcwd()
+    # filepath = os.path.join(cwd,"/","chk.pdf")
+    # print("File path:", filepath)
+
+    #creating array of the job_id_urls
+    workbook = load_workbook(filename)
+    worksheet = workbook.active
+    job_id_url = []
+    for i,row in enumerate(worksheet):
+        if i == 0 : #Skips Column Heading
+            continue
+        url = row[1].value
+        job_id_url.append(url)
+    print("---------Application Process Started---------")
+    #Hitting each page
+    for job in job_id_url:
+        print(f"In page url:{job}")
+        #opening a page and applying
+        page.goto(job)
+        #wait for page to load
+        page.wait_for_timeout(5000)
+
+        recruiter = page.get_by_role("heading", name="Meet the hiring team").is_visible()
+        if recruiter is True:
+            print("Recruiter is present")
+            recruiter_link = page.locator(".job-details-people-who-can-help__section a[data-test-app-aware-link]").first.get_attribute("href")
+        else:
+            print("No recruiter")
+            recruiter_link = 0
+
+        print(recruiter_link)
+        # Update the HR ID in the Excel file for the matching job URL
+        for row in worksheet.iter_rows(min_row=2, max_row=worksheet.max_row):  # Starting from row 2 to skip headers
+            if row[1].value == job:  # Match Job URL with current page URL
+                row[3].value = recruiter_link # Update HR ID (4th column)
+        workbook.save("LinkedInJobs.xlsx")  # Save changes immediately
+        print(f"Updated Recruiter Information in the file: {filename}")
+        #resume path
+        rname = "/Users/ganapathisubramaniam/GIT Backup/Projects/gwg_autoApplyLn/autoApplyLn/chk1.pdf"
+
+        #Clicking on the Easy Apply button
+        try:
+            # Index starts at 0
+            easyApply = page.locator('button[aria-label^="Easy Apply to"]').nth(1)
+            easyApply.scroll_into_view_if_needed()
+            try:
+                easyApply.click()
+            except Exception as e:
+                print(f"Error processing {job} due to: {e}")
+                continue  # Moves to the next job
+
+            page.wait_for_timeout(5000)
+
+            dialog_box = page.get_by_role("heading", name="Contact info").is_visible()
+            if dialog_box is True:
+
+                print("opened the dialog box")
+                page.get_by_label("Mobile phone number").fill("0000001")
+                page.get_by_label("Continue to next step").click()
+
+                #This didnt work as the upload dialog box was not closing, hence used filechooser method from playwright
+                # page.locator("label").filter(has_text="Upload resume")
+                # # #print(f"filepath: {filepath}")
+                # ck = page.locator("label").filter(has_text="Upload resume").click()
+                # ck.set_input_files(rname)
+
+                with page.expect_file_chooser() as fc_info:
+                    page.locator("label").filter(has_text="Upload resume").click()  # Click upload button
+                file_chooser = fc_info.value  # Capture the file chooser event
+                file_chooser.set_files(rname)  # Set the file for upload
+                print("Resume uploaded successfully")
+                page.wait_for_timeout(5000)
+                page.get_by_label("Continue to next step").click()
+
+                page.wait_for_timeout(5000)
+                #extract_questions(page)
+                fill_form_until_review(page)
+
+            else:
+                print("Error in opening the dialog box after clicking on Easy Apply Button.")
+            page.wait_for_timeout(5000)
+        except Exception as e:
+            print(f"Error due to {e}")
+            continue
 
 def dupe_remove(filename):
    # Getting filepath of the workbook
