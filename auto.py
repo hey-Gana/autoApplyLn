@@ -5,7 +5,7 @@ from openpyxl import Workbook, load_workbook
 import os
 import pandas as pd
 from datetime import datetime
-import config as cf
+import config as cf #configuration file
 
 #Variables
 fname = cf.fname

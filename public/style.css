@@ -1,12 +1,14 @@
 body {
   background-color: lightblue;
 }
+
 h1,label {
   opacity: 60%;
   text-align: center;
   color: black;
   font-family: "Monaco";
 }
+
 h2,p,button{
     opacity: 60%;
     font-family: "Monaco";
