@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Auto Apply LinkedIn Form</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<h1>Welcome to AutoApplyLn App!</h1>
+
+<% if (!submitted) { %>  <!-- Show form only if not submitted -->
+    <form action="/save-config" method="POST" enctype="multipart/form-data">
+        <label>First Name:</label>
+        <input type="text" name="fname" required><br><br>
+
+        <label>Last Name:</label>
+        <input type="text" name="lname"><br><br>
+
+        <label>Email:</label>
+        <input type="email" name="email"><br><br>
+
+        <label>Password:</label>
+        <input type="password" name="pw"><br><br>
+
+        <label>Role:</label>
+        <input type="text" name="role"><br><br>
+
+        <label>Location:</label>
+        <input type="text" name="loc"><br><br>
+
+        <label>Years of Experience:</label>
+        <input type="number" name="yoe" min="1" max="10"><br><br>
+
+        <label>Resume:</label>
+        <input type="file" name="resume"><br><br>
+
+        <label>Headless Mode:</label>
+        <select name="head">
+            <option value="yes">Yes, Run without display</option>
+            <option value="no" selected>No, Open runner</option>
+        </select>
+        <br><br>
+        <input type="reset" value="Reset values">
+        <input type="submit" value="Submit to save the configuration">
+    </form>
+<% } else { %>  <!-- Show results and buttons after form submission -->
+    <h2>Configuration Saved Successfully!</h2>
+    <p><strong>First Name:</strong> <%= formData.fname %></p>
+    <p><strong>Last Name:</strong> <%= formData.lname %></p>
+    <p><strong>Email:</strong> <%= formData.email %></p>
+    <p><strong>Role:</strong> <%= formData.role %></p>
+    <p><strong>Location:</strong> <%= formData.loc %></p>
+    <p><strong>Experience:</strong> <%= formData.yoe %> years</p>
+    <p><strong>Resume:</strong> <%= formData.resume %></p>
+    <p><strong>Headless Mode:</strong> <%= formData.head %></p>
+
+    <form action="/" method="GET" class="inline-form">
+        <button type="submit">Reset</button>
+    </form>
+
+    <form action="/run-script" method="POST" class="inline-form">
+        <button type="submit">Run Automation</button>
+    </form>
+
+<% } %>
+
+</body>
+</html>

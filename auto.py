@@ -5,22 +5,23 @@ from openpyxl import Workbook, load_workbook
 import os
 import pandas as pd
 from datetime import datetime
+import config as cf
 
-# Variables
-fname = "GWG"
-lname = "Test"
-EMAIL = "groovewgana@gmail.com"
-PASSWORD = "HiG@na2024"
+#Variables
+fname = cf.fname
+lname = cf.lname
+EMAIL = cf.email
+PASSWORD = cf.pw
 url = "https://www.linkedin.com/login"
-role = "senior quantity surveyor"
-location = "United States"
+role = cf.role
+location = cf.loc
+yoe = cf.yoe
+#resume path
+rname = os.getcwd()+"/"+cf.resume
+head = cf.head
 all_job_ids = []
 filename = "LinkedInJobs.xlsx"
-yoe=1
-city = "Chicago"
-#resume path
-rname = "/Users/ganapathisubramaniam/GIT Backup/Projects/gwg_autoApplyLn/autoApplyLn/chk1.pdf"
-
+city = location
 
 def single_form(page):
     if page.locator('input[name="firstName"]').is_visible():
@@ -43,26 +44,39 @@ def single_form(page):
         print("Resume uploaded successfully")
 
 def update_status_in_excel(job_url, filename, status):
-    workbook = load_workbook(filename)
-    worksheet = workbook.active
-    updated = False
+    workbook = None
+    try:
+        workbook = load_workbook(filename)
+        worksheet = workbook.active
+        updated = False
 
-    # Find the matching job URL and update status
-    for row in worksheet.iter_rows(min_row=2, max_row=worksheet.max_row):  # Start from row 2 (skips headers)
-        if row[1].value == job_url:  # Job URL is in the 2nd column (index 1)
-            row[4].value = status  # Applied Status is in the 5th column (index 4)
-            updated = True
-            break #Exit from loop after matching job url is found and updated with right status
+        # Find the matching job URL and update status
+        for row in worksheet.iter_rows(min_row=2, max_row=worksheet.max_row):  # Start from row 2 (skips headers)
+            if row[1].value == job_url:  # Job URL is in the 2nd column (index 1)
+                row[4].value = status  # Applied Status is in the 5th column (index 4)
+                updated = True
+                break #Exit from loop after matching job url is found and updated with right status
 
-    # Save the workbook if any updates were made
-    if updated:
-        workbook.save(filename)  # Save the workbook only once
-        print(f"Updated applied status for job URL {job_url} to '{status}'")
-    else:
-        print(f"Job URL {job_url} not found in the Excel file.")
+        # Save the workbook if any updates were made
+        if updated:
+            workbook.save(filename)  # Save the workbook only once
+            print(f"Updated applied status for job URL {job_url} to '{status}'")
+        else:
+            print(f"Job URL {job_url} not found in the Excel file.")
+
+    except Exception as e:
+        print(f"Error update Excel: {e}")
+
+    finally:
+        if workbook:
+            try:
+                workbook.close()  # Explicitly close the workbook, else it is not saving previous updates properly
+            except:
+                print(f"Error closing workbook: {e}")
 
 def fill_form_until_review(page):
     review_attempts = 0 # Counter for repeated review page encounters
+    fill_form_attempts = 0
     job_url = page.url  # Capture the current job URL
     while True:
         print("in fill_form_until_review function")
@@ -142,10 +156,13 @@ def fill_form(page):
 
                 elif tag_name == "select":
                     try:
-                        input_element.select_option("Yes")  # Try selecting "Yes"
+                        input_element.select_option("Yes",timeout=1000)  # Try selecting "Yes"
                         print(f"Selected 'Yes' for '{label.inner_text().strip()}'")
                     except Exception:
-                        print(f"Skipped '{label.inner_text().strip()}' (Option 'Yes' not found)")
+                        #print(f"Skipped '{label.inner_text().strip()}' (Option 'Yes' not found)")
+                        #update_status_in_excel(job, filename, "Attempted, but failed")
+                        print("Handling Model Interferences ...")
+                        return
 
                 elif input_type == "checkbox":
                     # Skip if an overlay is intercepting pointer events
@@ -155,18 +172,19 @@ def fill_form(page):
                             overlay = page.locator("#ember211")  # Modify the selector if needed
 
                             if overlay.is_visible():
-                                print(f"Skipping checkbox '{label.inner_text().strip()}' due to modal interference.")
+                                print(f"Skipping checkbox '{label.inner_text().strip()}' due to modal interferences.")
                             else:
                                 # Ensure it's not already checked before clicking
                                 if input_element.get_attribute("aria-checked") != "true":
                                     input_element.scroll_into_view_if_needed()  # Ensure it's in view
-                                    input_element.check()
+                                    input_element.check(timeout=1000)
                                     print(f"Checked '{label.inner_text().strip()}'")
                                 else:
                                     print(f"Checkbox '{label.inner_text().strip()}' is already checked, skipping.")
                         except Exception as e:
-                            print(f"Could not check '{label.inner_text().strip()}': {e}")
-                            update_status_in_excel(job, filename, "Attempted, but failed")
+                            #print(f"Could not check '{label.inner_text().strip()}': {e}")
+                            #update_status_in_excel(job, filename, "Attempted, but failed")
+                            print("Checking Modal Interferences and skipping them.")
                 else:
                     print("Oops! Something went wrong.")
                     update_status_in_excel(job, filename, "Attempted, but failed")
@@ -181,55 +199,55 @@ def fill_form(page):
 
 def applyJobs(page):
     print("In Applying for jobs by reading from excel")
-    #reading job url from excel and storing in an array
-    # cwd = os.getcwd()
-    # filepath = os.path.join(cwd,"/","chk.pdf")
-    # print("File path:", filepath)
 
-    #creating array of the job_id_urls
+    # Reading job URL from excel and storing in an array
     workbook = load_workbook(filename)
     worksheet = workbook.active
     job_id_url = []
-    for i,row in enumerate(worksheet):
-        if i == 0 : #Skips Column Heading
+
+    # Collecting URLs for jobs where HR ID is None
+    for i, row in enumerate(worksheet):
+        if i == 0:  # Skips Column Heading
             continue
         url = row[1].value
         hr_id = row[3].value
         applied_status = row[4].value
 
-        # Check if applied_status is None and handle accordingly
+        # Handle None or empty applied status
         if applied_status is None:
             applied_status = ""
         else:
             applied_status = str(applied_status).strip().lower()
 
         # Skip jobs with status 'Submitted' or 'Attempted, but failed'
-        if hr_id is not None :
+        if hr_id is not None:
             print(f"  Skipping {url} - Status: {applied_status}")
             continue
         job_id_url.append(url)
 
     print("Job URL to apply:")
-    k=1
-    for j in job_id_url:
-        print({k}," :- ",{j})
-        k+=1
+    k = 1
 
+    for j in job_id_url:
+        print({k}, " :- ", {j})
+        k += 1
 
     print("---------Application Process Started---------")
-    i=0
-    #Hitting each page
+    i = 0
+
+    # Iterate over each job URL
     for job in job_id_url:
-        i+=1
+        error_occurred = False  # Initialize the flag at the start of each job processing
+        i += 1
         print(f"----------{i}----------")
         print(f"In page url:{job}")
-        #opening a page and applying
+
+        # Opening a page and applying
         page.goto(job)
-        #wait for page to load
         page.wait_for_timeout(5000)
 
         recruiter = page.get_by_role("heading", name="Meet the hiring team").is_visible()
-        if recruiter is True:
+        if recruiter:
             print("Recruiter is present")
             recruiter_link = page.locator(".job-details-people-who-can-help__section a[data-test-app-aware-link]").first.get_attribute("href")
         else:
@@ -240,13 +258,12 @@ def applyJobs(page):
         # Update the HR ID in the Excel file for the matching job URL
         for row in worksheet.iter_rows(min_row=2, max_row=worksheet.max_row):  # Starting from row 2 to skip headers
             if row[1].value == job:  # Match Job URL with current page URL
-                row[3].value = recruiter_link # Update HR ID (4th column)
+                row[3].value = recruiter_link  # Update HR ID (4th column)
         workbook.save("LinkedInJobs.xlsx")  # Save changes immediately
         print(f"Updated Recruiter Information in the file: {filename}")
 
-        #Clicking on the Easy Apply button
+        # Clicking on the Easy Apply button
         try:
-            # Index starts at 0
             easyApply = page.locator('button[aria-label^="Easy Apply to"]').nth(1)
             easyApply.scroll_into_view_if_needed()
             try:
@@ -259,7 +276,7 @@ def applyJobs(page):
             page.wait_for_timeout(5000)
 
             dialog_box = page.get_by_role("heading", name="Contact info").is_visible()
-            if dialog_box is True:
+            if dialog_box:
                 print("opened the dialog box")
                 submit_button = page.get_by_label("Submit Application")
                 next_step_button = page.get_by_label("Continue to next step")
@@ -269,21 +286,15 @@ def applyJobs(page):
                         single_form(page)
                         submit_button.click()
                         update_status_in_excel(job, filename, "Submitted")  # Update the status to "Submitted"
-                        # break  # Exit the loop after submission
+                        continue  # Exit the loop after submission
                     except Exception as e:
                         print(f"Couldn't submit single page form due to {e}")
-                        update_status_in_excel(job, filename, "Attempted, but failed")
+                        error_occurred = True
 
                 elif next_step_button.is_visible():
                     print("Long Form")
                     page.get_by_label("Mobile phone number").fill("0000001")
                     page.get_by_label("Continue to next step").click()
-
-                    #This didnt work as the upload dialog box was not closing, hence used filechooser method from playwright
-                    # page.locator("label").filter(has_text="Upload resume")
-                    # # #print(f"filepath: {filepath}")
-                    # ck = page.locator("label").filter(has_text="Upload resume").click()
-                    # ck.set_input_files(rname)
 
                     with page.expect_file_chooser() as fc_info:
                         page.locator("label").filter(has_text="Upload resume").click()  # Click upload button
@@ -294,25 +305,28 @@ def applyJobs(page):
                     page.get_by_label("Continue to next step").click()
 
                     page.wait_for_timeout(5000)
-                    #extract_questions(page)
                     try:
                         fill_form_until_review(page)
                     except Exception as e:
                         print(f"Couldn't fill form until the end due to {e}")
-                        update_status_in_excel(job, filename, "Attempted, but failed")
-
-                else:
-                    print("Couldn't fill form.")
-                    update_status_in_excel(job, filename, "Attempted, but failed")
+                        error_occurred = True
             else:
                 print("Error in opening the dialog box after clicking on Easy Apply Button.")
-                update_status_in_excel(job, filename, "Attempted, but failed")
+                error_occurred = True
+
             page.wait_for_timeout(5000)
+
         except Exception as e:
-            print(f"Error due to {e}")
-            print("Couldn't find Easy Apply Button.")
+            print("Error: Easy Apply Button not found.")
+            error_occurred = True
+
+        # Update the status only once after the application process for each job
+        if error_occurred:
             update_status_in_excel(job, filename, "Attempted, but failed")
-            continue
+    # Final Save and Close the Workbook
+    workbook.save("LinkedInJobs.xlsx")# Save changes at the end of all processing
+    workbook.close()  # Explicitly close the workbook
+    print("Final save after applying for all jobs.")
 
 def dupe_remove(filename):
    # Getting filepath of the workbook
@@ -423,7 +437,7 @@ def extract_jobs(page) -> None:
    # Get the number of jobs from the page
    try:
       text = page.locator("small span").inner_text()
-      number_of_jobs_filtered = int(text.split(" ")[0])  # e.g., '647 results' -> 647
+      number_of_jobs_filtered = int(text.split(" ")[0].replace(",", "")) # e.g : 1,006 -> 1006
       print(f"Number of jobs filtered: {number_of_jobs_filtered}")
    except Exception as e:
       print(f"Error while fetching the number of jobs: {e}")
@@ -532,7 +546,7 @@ def job_search(page, role, location):
    extract_jobs(page)
 
 def open_browser(playwright: Playwright, url: str):
-   browser = playwright.chromium.launch(headless=False)
+   browser = playwright.chromium.launch(headless=head)
    page = browser.new_page(viewport={'width': 1600, 'height': 900})
 
    try:
@@ -546,18 +560,24 @@ def open_browser(playwright: Playwright, url: str):
       password_input.fill(PASSWORD)
 
       checkbox = page.get_by_text("Keep me logged in")
-      checkbox.click()
+      if checkbox.is_visible():
+          checkbox.click()
 
       login_button = page.locator('button.btn__primary--large[type="submit"]')
       login_button.click()
 
       page.wait_for_timeout(5000)
-      print("Login successful!!!")
+      navbar = page.get_by_label("Global Navigation")
+      if navbar.is_visible():
+          print("Login successful!!!")
+      else:
+          print("Login unsuccessful!!")
 
       job_search(page, role, location)
 
    except Exception as e:
       print(f'Error occurred: {e}')
+      print("Couldn't login to the application!")
 
    finally:
       browser.close()
@@ -570,5 +590,6 @@ def main():
       )
 
 if __name__ == '__main__':
+   print("Running Automation Script")
    main()
 
