@@ -37,12 +37,6 @@ Before running the script, ensure you have the following:
    ```bash
    playwright install
    ```
-## Features Implemented
-
-- **Resume Upload Support**: Enable users to upload different resumes for different job roles.
-- **Cover Letter Customization**: Auto-generate cover letters based on job descriptions.
-- **Multi-Account Support**: Allow job applications from multiple LinkedIn accounts.
-- **Enhanced Tracking Dashboard**: Provide a GUI to track applications visually.
 
 
 ## Usage
