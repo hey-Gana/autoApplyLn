@@ -1,0 +1,25 @@
+body {
+  background-color: lightblue;
+}
+
+h1,label {
+  opacity: 60%;
+  text-align: center;
+  color: black;
+  font-family: "Monaco";
+}
+
+h2,p,button{
+    opacity: 60%;
+    font-family: "Monaco";
+    color: black;
+    left: 50px;
+    position: relative;
+}
+.inline-form {
+    display: inline-block;
+    margin-right: 10px;  /* Optional, to add some space between the forms */
+}
+
+
+
