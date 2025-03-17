@@ -2,7 +2,7 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs'); // for writing files
 const multer = require('multer'); // for handling file uploads
-const { spawn } = require("child_process");
+const { spawn } = require("child_process"); //running script in the background terminal
 
 const app = express();
 const host = '127.0.0.1';
