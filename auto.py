@@ -22,6 +22,13 @@ head = cf.head
 all_job_ids = []
 filename = "LinkedInJobs.xlsx"
 city = location
+status_dict = {}  # Global dictionary
+
+def update_status_dict(job_url, status):
+    """Updates the global status dictionary with the given job URL and status."""
+    global status_dict
+    status_dict[job_url.strip()] = status  # Strip spaces for consistency
+    print(f"Updating {job_url} to '{status}'in dictionary")
 
 def single_form(page):
     if page.locator('input[name="firstName"]').is_visible():
@@ -43,36 +50,38 @@ def single_form(page):
         file_chooser.set_files(rname)
         print("Resume uploaded successfully")
 
-def update_status_in_excel(job_url, filename, status):
-    workbook = None
+def update_excel_from_dict(filename):
+    """Updates the Excel file with all statuses from the global status dictionary."""
+    global status_dict
     try:
-        workbook = load_workbook(filename)
-        worksheet = workbook.active
-        updated = False
+        df = pd.read_excel(filename)
 
-        # Find the matching job URL and update status
-        for row in worksheet.iter_rows(min_row=2, max_row=worksheet.max_row):  # Start from row 2 (skips headers)
-            if row[1].value == job_url:  # Job URL is in the 2nd column (index 1)
-                row[4].value = status  # Applied Status is in the 5th column (index 4)
-                updated = True
-                break #Exit from loop after matching job url is found and updated with right status
+        # Standardize column names
+        df.columns = df.columns.str.strip()
+        df['Job URL'] = df['Job URL'].astype(str).str.strip()  # Ensure consistency
 
-        # Save the workbook if any updates were made
-        if updated:
-            workbook.save(filename)  # Save the workbook only once
-            print(f"Updated applied status for job URL {job_url} to '{status}'")
-        else:
-            print(f"Job URL {job_url} not found in the Excel file.")
+        # Ensure 'Applied Status' column exists
+        if 'Applied Status' not in df.columns:
+            df['Applied Status'] = pd.NA
 
+        df['Applied Status'] = df['Applied Status'].astype(str)
+
+        # Debugging: Print job URLs before updating
+        print("Existing job URLs in DataFrame:", df['Job URL'].tolist())
+
+        # Update statuses in DataFrame
+        for job_url, status in status_dict.items():
+            if job_url in df['Job URL'].values:
+                print(f"Updating {job_url} to '{status}' in excel sheet.")
+                df.loc[df['Job URL'] == job_url, 'Applied Status'] = status
+            else:
+                print(f"Job URL {job_url} not found in DataFrame!")
+
+        # Save the DataFrame back to Excel
+        df.to_excel(filename, index=False)
+        print("Excel file updated successfully with all statuses.")
     except Exception as e:
-        print(f"Error update Excel: {e}")
-
-    finally:
-        if workbook:
-            try:
-                workbook.close()  # Explicitly close the workbook, else it is not saving previous updates properly
-            except:
-                print(f"Error closing workbook: {e}")
+        print(f"Error updating Excel: {e}")
 
 def fill_form_until_review(page):
     review_attempts = 0 # Counter for repeated review page encounters
@@ -84,7 +93,7 @@ def fill_form_until_review(page):
             fill_form(page)  # Fill the form fields
         except Exception as e:
             print(f"Exception: {e}")
-            update_status_in_excel(job_url, filename, "Attempted, but failed")
+            update_status_dict(job_url,"Attempted, but failed")
             break
 
         try:
@@ -107,18 +116,18 @@ def fill_form_until_review(page):
                     review_attempts += 1  # Increment review page counter
                     if review_attempts >= 3:  # If stuck on the review page
                         print("Stuck on review page. Exiting loop and updating status.")
-                        update_status_in_excel(job_url, filename, "Attempted, but failed")
+                        update_status_dict(job_url,"Attempted, but failed")
                         break
                     # Check for submit button
                     submit_button = page.get_by_label("Submit Application")
                     if submit_button.is_visible():
                         print("Submit Button present. Clicking submit button!")
                         submit_button.click()
-                        update_status_in_excel(job_url, filename, "Submitted")  # Update the status to "Submitted"
+                        update_status_dict(job_url,"Submitted")  # Update the status to "Submitted"
                         break  # Exit the loop after submission
                 else:
                     print("No action button present")
-                    update_status_in_excel(job_url, filename, "Attempted, but failed")
+                    update_status_dict(job_url,"Attempted, but failed")
                     break  # Exit the loop if no next step or review button exists
 
         except Exception as e:
@@ -187,14 +196,14 @@ def fill_form(page):
                             print("Checking Modal Interferences and skipping them.")
                 else:
                     print("Oops! Something went wrong.")
-                    update_status_in_excel(job, filename, "Attempted, but failed")
+                    update_status_dict(job,"Attempted, but failed")
                     return #break and go to the next job
             except Exception as e:
                 print(f"Couldn't process: '{label.inner_text().strip()}', due to error- {e}")
-                update_status_in_excel(job, filename, "Attempted, but failed")
+                update_status_dict(job,"Attempted, but failed")
         else:
             print(f"Label '{label.inner_text().strip()}' has no 'for' attribute")
-            update_status_in_excel(job, filename, "Attempted, but failed")
+            update_status_dict(job,"Attempted, but failed")
             return  # Instead of breaking, continue processing other labels
 
 def applyJobs(page):
@@ -270,7 +279,7 @@ def applyJobs(page):
                 easyApply.click()
             except Exception as e:
                 print(f"Error processing {job} due to: {e}")
-                update_status_in_excel(job, filename, "Attempted, but failed")
+                update_status_dict(job,"Attempted, but failed")
                 continue  # Moves to the next job
 
             page.wait_for_timeout(5000)
@@ -285,7 +294,7 @@ def applyJobs(page):
                     try:
                         single_form(page)
                         submit_button.click()
-                        update_status_in_excel(job, filename, "Submitted")  # Update the status to "Submitted"
+                        update_status_dict(job,"Submitted")  # Update the status to "Submitted"
                         continue  # Exit the loop after submission
                     except Exception as e:
                         print(f"Couldn't submit single page form due to {e}")
@@ -293,6 +302,7 @@ def applyJobs(page):
 
                 elif next_step_button.is_visible():
                     print("Long Form")
+                    review_button = page.get_by_label("Review your application")
                     page.get_by_label("Mobile phone number").fill("0000001")
                     page.get_by_label("Continue to next step").click()
 
@@ -305,6 +315,7 @@ def applyJobs(page):
                     page.get_by_label("Continue to next step").click()
 
                     page.wait_for_timeout(5000)
+
                     try:
                         fill_form_until_review(page)
                     except Exception as e:
@@ -322,7 +333,8 @@ def applyJobs(page):
 
         # Update the status only once after the application process for each job
         if error_occurred:
-            update_status_in_excel(job, filename, "Attempted, but failed")
+            update_status_dict(job,"Attempted, but failed")
+
     # Final Save and Close the Workbook
     workbook.save("LinkedInJobs.xlsx")# Save changes at the end of all processing
     workbook.close()  # Explicitly close the workbook
@@ -592,4 +604,7 @@ def main():
 if __name__ == '__main__':
    print("Running Automation Script")
    main()
+   print("\nFinal Status Dictionary:", status_dict)
+   update_excel_from_dict(filename)
+
 
