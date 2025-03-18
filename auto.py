@@ -10,6 +10,7 @@ import config as cf #configuration file
 #Variables
 fname = cf.fname
 lname = cf.lname
+phno = cf.mob
 EMAIL = cf.email
 PASSWORD = cf.pw
 url = "https://www.linkedin.com/login"
@@ -21,7 +22,7 @@ rname = os.getcwd()+"/"+cf.resume
 head = cf.head
 all_job_ids = []
 filename = "LinkedInJobs.xlsx"
-city = location
+city = cf.city
 status_dict = {}  # Global dictionary
 
 def update_status_dict(job_url, status):
@@ -40,8 +41,15 @@ def single_form(page):
         print("Last Name updated")
 
     if page.locator('input[name="phoneNumber"]').is_visible():
-        page.locator('input[name="phoneNumber"]').fill("0000001")
+        page.locator('input[name="phoneNumber"]').fill(phno)
         print("Phone number updated")
+
+    # if page.get_by_label("Mobile phone number").is_visible():
+    #     page.get_by_label("Mobile phone number").fill(phno)
+    #     print(f"Mobile Number filled with {phno}")
+    if page.get_by_label("Location (city)").is_visible():
+        page.get_by_label("Location (city)").fill(city)
+        print(f"City field filled with {city}")
 
     if page.locator("label").filter(has_text="Upload resume").is_visible():
         with page.expect_file_chooser() as fc_info:
@@ -302,8 +310,12 @@ def applyJobs(page):
 
                 elif next_step_button.is_visible():
                     print("Long Form")
-                    review_button = page.get_by_label("Review your application")
-                    page.get_by_label("Mobile phone number").fill("0000001")
+                    if page.get_by_label("Mobile phone number").is_visible():
+                        page.get_by_label("Mobile phone number").fill(phno)
+                        print(f"Mobile Number filled with {phno}")
+                    if page.get_by_label("Location (city)").is_visible():
+                        page.get_by_label("Location (city)").fill(city)
+                        print(f"City field filled with {city}")
                     page.get_by_label("Continue to next step").click()
 
                     with page.expect_file_chooser() as fc_info:

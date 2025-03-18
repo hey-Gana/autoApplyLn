@@ -16,6 +16,12 @@
         <label>Last Name:</label>
         <input type="text" name="lname"><br><br>
 
+        <label>Mobile Number</label>
+        <input type="tel" name="phno" maxlength = 10 pattern="[0-9]{10}" oninput="this.value = this.value.replace(/[^0-9]/g, '')"><br><br>
+
+        <label>City:</label>
+        <input type="text" name="city"><br><br>
+
         <label>Email:</label>
         <input type="email" name="email"><br><br>
 
@@ -47,6 +53,8 @@
     <h2>Configuration Saved Successfully!</h2>
     <p><strong>First Name:</strong> <%= formData.fname %></p>
     <p><strong>Last Name:</strong> <%= formData.lname %></p>
+    <p><strong>Mobile Number:</strong> <%= formData.phno %></p>
+    <p><strong>City:</strong> <%= formData.city %></p>
     <p><strong>Email:</strong> <%= formData.email %></p>
     <p><strong>Role:</strong> <%= formData.role %></p>
     <p><strong>Location:</strong> <%= formData.loc %></p>
