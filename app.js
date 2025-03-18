@@ -49,6 +49,8 @@ app.post("/save-config", upload.single('resume'), (req, res) => {
 # Config file generated from form submission
 fname = "${config.fname}"
 lname = "${config.lname}"
+phno = "${config.phno}"
+city = "${config.city}"
 email = "${config.email}"
 pw = "${config.pw}"
 role = "${config.role}"
