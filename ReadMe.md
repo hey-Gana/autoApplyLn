@@ -96,5 +96,5 @@ http://127.0.0.1:3000
 
 ## Demo
 [![Watch the video](https://img.youtube.com/vi/1J9dsxpKiYc/0.jpg)](https://www.youtube.com/watch?v=1J9dsxpKiYc)
-Click on the video to watch the demo. 
+<br>Click on the video to watch the demo. <br>
 A sample terminal output and Excel report is also available in the Uploads folder of the repository.
