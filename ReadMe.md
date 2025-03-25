@@ -94,4 +94,7 @@ http://127.0.0.1:3000
 - **Enhanced Tracking Dashboard**: Provide a GUI dashboard to track applications visually. Dashboard information would provide insight on location(city) where most jobs are listed, highest salary paying locations, % match of job roles with resume etc.
 - **Expand functionality to all job portals**: Extend auto apply feature to other job portals such as Indeed, Glassdoor, Monster, SimplyHired etc.
 
-
+## Demo
+[![Watch the video](https://img.youtube.com/vi/1J9dsxpKiYc/0.jpg)](https://www.youtube.com/watch?v=1J9dsxpKiYc)
+Click on the video to watch the demo. 
+A sample terminal output and Excel report is also available in the Uploads folder of the repository.

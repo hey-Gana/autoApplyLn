@@ -5,12 +5,12 @@ from openpyxl import Workbook, load_workbook
 import os
 import pandas as pd
 from datetime import datetime
-import config as cf #configuration file
+import config as cf #configuration file will be generated once the application form is filled
 
 #Variables
 fname = cf.fname
 lname = cf.lname
-phno = cf.mob
+phno = cf.phno
 EMAIL = cf.email
 PASSWORD = cf.pw
 url = "https://www.linkedin.com/login"
@@ -310,12 +310,22 @@ def applyJobs(page):
 
                 elif next_step_button.is_visible():
                     print("Long Form")
+                    if page.locator('input[name="firstName"]').is_visible():
+                        page.locator('input[name="firstName"]').fill(fname)
+                        print("First Name updated")
+
+                    if page.locator('input[name="lastName"]').is_visible():
+                        page.locator('input[name="lastName"]').fill(lname)
+                        print("Last Name updated")
+
                     if page.get_by_label("Mobile phone number").is_visible():
                         page.get_by_label("Mobile phone number").fill(phno)
                         print(f"Mobile Number filled with {phno}")
+
                     if page.get_by_label("Location (city)").is_visible():
                         page.get_by_label("Location (city)").fill(city)
                         print(f"City field filled with {city}")
+
                     page.get_by_label("Continue to next step").click()
 
                     with page.expect_file_chooser() as fc_info:
@@ -324,15 +334,36 @@ def applyJobs(page):
                     file_chooser.set_files(rname)  # Set the file for upload
                     print("Resume uploaded successfully")
                     page.wait_for_timeout(5000)
-                    page.get_by_label("Continue to next step").click()
+                    review_button = page.get_by_label("Review your application")
+                    next_step_button = page.get_by_label("Continue to next step")
+                    if review_button.is_visible():
+                        print("Review button is present after uploading resume")
+                        print("Reached the review page. Stopping form filling.")
+                        print("Clicking review button.")
+                        review_button.click()
+                        page.wait_for_timeout(3000)
+                        review_attempts += 1  # Increment review page counter
+                        if review_attempts >= 3:  # If stuck on the review page
+                            print("Stuck on review page. Exiting loop and updating status.")
+                            update_status_dict(job,"Attempted, but failed")
+                        break
+                        # Check for submit button
+                        submit_button = page.get_by_label("Submit Application")
+                        if submit_button.is_visible():
+                            print("Submit Button present. Clicking submit button!")
+                            submit_button.click()
+                            update_status_dict(job,"Submitted")  # Update the status to "Submitted"
+                            break  # Exit the loop after submission
 
-                    page.wait_for_timeout(5000)
-
-                    try:
-                        fill_form_until_review(page)
-                    except Exception as e:
-                        print(f"Couldn't fill form until the end due to {e}")
-                        error_occurred = True
+                    if next_step_button.is_visible():
+                        page.get_by_label("Continue to next step").click()
+                        print("Next button is present after uploading resume.")
+                        page.wait_for_timeout(5000)
+                        try:
+                            fill_form_until_review(page)
+                        except Exception as e:
+                            print(f"Couldn't fill form until the end due to {e}")
+                            error_occurred = True
             else:
                 print("Error in opening the dialog box after clicking on Easy Apply Button.")
                 error_occurred = True
