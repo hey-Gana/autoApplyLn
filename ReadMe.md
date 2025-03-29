@@ -8,6 +8,12 @@ It also scrapes the jobs and associated recruiter information[linkedin profile] 
 All job application data and reports are stored in an Excel file, `linkedinjobs.xlsx`, which includes recruiter details, application status, and the dates when jobs were scraped and applied.<br>
 The Excel file gets updated at the end of the script execution.<br>
 
+## Demo
+[![Watch the video](https://img.youtube.com/vi/1J9dsxpKiYc/0.jpg)](https://www.youtube.com/watch?v=1J9dsxpKiYc)
+<br>Click on the video to watch the demo. <br>
+A sample terminal output and Excel report is also available in the Uploads folder of the repository.
+
+
 ## Features Implemented
 
 - **Automated LinkedIn login**: Uses stored credentials for automatic authentication.
@@ -62,7 +68,7 @@ pip3 install -r requirements.txt
 ```sh
 node app.js
 ```
-### **Step 4: Run the Automation Script (Optional)**
+- **Step 4: Run the Automation Script (Optional)**
 To manually trigger the automation script:<br>
 1. Create a file: config.py and store values of your details:
 ```sh
@@ -94,7 +100,3 @@ http://127.0.0.1:3000
 - **Enhanced Tracking Dashboard**: Provide a GUI dashboard to track applications visually. Dashboard information would provide insight on location(city) where most jobs are listed, highest salary paying locations, % match of job roles with resume etc.
 - **Expand functionality to all job portals**: Extend auto apply feature to other job portals such as Indeed, Glassdoor, Monster, SimplyHired etc.
 
-## Demo
-[![Watch the video](https://img.youtube.com/vi/1J9dsxpKiYc/0.jpg)](https://www.youtube.com/watch?v=1J9dsxpKiYc)
-<br>Click on the video to watch the demo. <br>
-A sample terminal output and Excel report is also available in the Uploads folder of the repository.
